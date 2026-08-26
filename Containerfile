@@ -3,8 +3,13 @@ FROM scratch AS ctx
 COPY build_files /
 COPY system_files /system_files
 
+# Prebuilt proprietary (non-open) NVIDIA modules + longterm kernel cache
+ARG AKMODS_NVIDIA="ghcr.io/ublue-os/akmods-nvidia-lts:longterm-6.18-44"
+FROM ${AKMODS_NVIDIA} AS akmods-nvidia
+
 # Base Image
-FROM ghcr.io/ublue-os/bazzite:stable@sha256:b923f92d5a5b59eb992e269383eba2744601052da9d3d1595f76e79aa6ce2df0
+ARG BASE_IMAGE="ghcr.io/ublue-os/base-main:latest"
+FROM ${BASE_IMAGE}
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:testing
 # FROM ghcr.io/ublue-os/aurora:stable
@@ -14,6 +19,9 @@ FROM ghcr.io/ublue-os/bazzite:stable@sha256:b923f92d5a5b59eb992e269383eba2744601
 # Universal Blue Images: https://github.com/orgs/ublue-os/packages
 # Fedora base image: quay.io/fedora/fedora-bootc:44
 # CentOS base images: quay.io/centos-bootc/centos-bootc:stream10
+
+ARG ENABLE_NVIDIA="1"
+ARG NVIDIA_FLAVOR="lts"   # lts = proprietary | open = nvidia-open
 
 ### [IM]MUTABLE /opt
 ## Some bootable images, like Fedora, have /opt symlinked to /var/opt, in order to
@@ -27,14 +35,22 @@ FROM ghcr.io/ublue-os/bazzite:stable@sha256:b923f92d5a5b59eb992e269383eba2744601
 # RUN rm /opt && mkdir /opt
 
 ### MODIFICATIONS
-## make modifications desired in your image and install packages by modifying the build.sh script
-## the following RUN directive does all the things required to run "build.sh" as recommended.
+## make modifications desired in your image and install packages by modifying the module scripts
+## the following RUN directives run the module scripts as recommended.
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh
+    /ctx/build_files/modules/common.sh
+
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=akmods-nvidia,src=/kernel-rpms,dst=/tmp/kernel-rpms \
+    --mount=type=bind,from=akmods-nvidia,src=/rpms,dst=/tmp/rpms/nvidia \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build_files/modules/kernel.sh
 
 ### LINTING
 ## Verify final image and contents are correct.

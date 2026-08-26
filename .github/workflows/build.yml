@@ -12,6 +12,19 @@ on:
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
+    inputs:
+      image_name:
+        description: "GHCR repo name to push to"
+        default: "fatomic-nvidia"
+      nvidia_flavor:
+        description: "lts = proprietary (longterm kernel) | open = nvidia-open"
+        default: "lts"
+      desc:
+        description: "Image description label"
+        default: "Opinionated atomic bootc image"
+      base_image:
+        description: "Base image reference"
+        default: "ghcr.io/ublue-os/base-main:latest"
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
@@ -29,6 +42,13 @@ jobs:
       contents: read
       packages: write
       id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "fatomic-nvidia",      flavor: "lts",  desc: "Proprietary nvidia (longterm kernel)" }
+          - { name: "fatomic-nvidia-open", flavor: "open", desc: "nvidia-open" }
 
     steps:
       # These stage versions are pinned by https://github.com/renovatebot/renovate
@@ -49,7 +69,11 @@ jobs:
       - name: Image Name
         id: image-name
         run: |
-          IMAGE_NAME=$(just image_name)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IMAGE_NAME="${{ inputs.image_name }}"
+          else
+            IMAGE_NAME="${{ matrix.name }}"
+          fi
 
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
 
@@ -70,9 +94,22 @@ jobs:
       - name: Build Image
         id: build-image
         run: |
-          just build \
-            ${IMAGE_NAME} \
-            ${DEFAULT_TAG}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            just build \
+              ${IMAGE_NAME} \
+              ${DEFAULT_TAG} \
+              "1" \
+              "${{ inputs.nvidia_flavor }}" \
+              "${{ inputs.desc }}" \
+              "${{ inputs.base_image }}"
+          else
+            just build \
+              ${IMAGE_NAME} \
+              ${DEFAULT_TAG} \
+              "1" \
+              "${{ matrix.flavor }}" \
+              "${{ matrix.desc }}"
+          fi
 
       # This is optional, this provides smaller delta updates
       - name: Rechunk with rpm-ostree

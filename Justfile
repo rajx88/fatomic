@@ -1,9 +1,8 @@
 set dotenv-filename := "image-template.env"
 set dotenv-load
 
-export image_name := env_var("IMAGE_NAME")
+export image_name := "fatomic"
 export repo_organization := env_var("REPO_ORGANIZATION")
-export image_desc := env_var("IMAGE_DESC")
 export image_keywords := env_var("IMAGE_KEYWORDS")
 export image_logo_url := env_var("IMAGE_LOGO_URL")
 export default_tag := env_var("DEFAULT_TAG")
@@ -93,7 +92,7 @@ sudoif command *args:
 #
 
 # Build the image using the specified parameters
-build $target_image=image_name $tag=default_tag:
+build $target_image=image_name $tag=default_tag $nvidia="1" $nvidia_flavor="lts" $desc="Opinionated atomic bootc image" $base_image="ghcr.io/ublue-os/base-main:latest":
     #!/usr/bin/env bash
 
     set -euox pipefail
@@ -117,12 +116,16 @@ build $target_image=image_name $tag=default_tag:
     LABELS+=("--label" "io.artifacthub.package.logo-url={{ image_logo_url }}")
     LABELS+=("--label" "io.artifacthub.package.prerelease=false")
     LABELS+=("--label" "org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)")
-    LABELS+=("--label" "org.opencontainers.image.description={{ image_desc }}")
-    LABELS+=("--label" "org.opencontainers.image.title={{ image_name }}")
+    LABELS+=("--label" "org.opencontainers.image.description={{ desc }}")
+    LABELS+=("--label" "org.opencontainers.image.title={{ target_image }}")
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
 
     # This actually builds the image!
-    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
+    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" \
+      --build-arg ENABLE_NVIDIA="{{ nvidia }}" \
+      --build-arg NVIDIA_FLAVOR="{{ nvidia_flavor }}" \
+      --build-arg BASE_IMAGE="{{ base_image }}" \
+      --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
 
     podman build "${PODMAN_BUILD_ARGS[@]}" .
 
