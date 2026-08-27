@@ -1,14 +1,15 @@
-# Allow build scripts to be referenced without being copied into the final image
-FROM scratch AS ctx
-COPY build_files /
-COPY system_files /system_files
-
 # Prebuilt proprietary (non-open) NVIDIA modules + longterm kernel cache
 ARG AKMODS_NVIDIA="ghcr.io/ublue-os/akmods-nvidia-lts:longterm-6.18-44"
+ARG BASE_IMAGE="ghcr.io/ublue-os/base-main:latest"
+
+# Allow build scripts to be referenced without being copied into the final image
+FROM scratch AS ctx
+COPY build_files /build_files
+COPY system_files /system_files
+
 FROM ${AKMODS_NVIDIA} AS akmods-nvidia
 
 # Base Image
-ARG BASE_IMAGE="ghcr.io/ublue-os/base-main:latest"
 FROM ${BASE_IMAGE}
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:testing
@@ -21,7 +22,8 @@ FROM ${BASE_IMAGE}
 # CentOS base images: quay.io/centos-bootc/centos-bootc:stream10
 
 ARG ENABLE_NVIDIA="1"
-ARG NVIDIA_FLAVOR="lts"   # lts = proprietary | open = nvidia-open
+# lts = proprietary | open = nvidia-open
+ARG NVIDIA_FLAVOR="lts"
 
 ### [IM]MUTABLE /opt
 ## Some bootable images, like Fedora, have /opt symlinked to /var/opt, in order to
