@@ -26,8 +26,10 @@ rm -rf /usr/lib/modules
 dnf5 -y install /tmp/kernel-rpms/kernel-longterm*.rpm
 dnf5 versionlock add kernel-longterm kernel-longterm-core kernel-longterm-modules
 
-# Install prebuilt proprietary nvidia modules (nvidia-lts) from the akmods cache
-AKMODNV_PATH=/tmp/rpms/nvidia /tmp/rpms/nvidia/ublue-os/nvidia-install.sh
+# Install prebuilt proprietary nvidia modules (nvidia-lts) from the akmods cache.
+# nvidia-install.sh reads IMAGE_NAME under `set -u`; it only uses it to gate the
+# kinoite/silverblue-only extra packages (supergfxctl), which fatomic does not ship.
+IMAGE_NAME=fatomic AKMODNV_PATH=/tmp/rpms/nvidia /tmp/rpms/nvidia/ublue-os/nvidia-install.sh
 systemctl enable nvidia-powerd.service 2>/dev/null || true
 
 # Restore kernel-install shims
